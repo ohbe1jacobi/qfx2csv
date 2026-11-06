@@ -1,1 +1,1 @@
-ofxtools==0.9.5
+ofxtools==1.1.1
