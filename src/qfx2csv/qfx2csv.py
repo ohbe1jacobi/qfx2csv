@@ -79,9 +79,11 @@ def fix_encoding_header(fileobj) -> BytesIO:
     except UnicodeDecodeError:
         return BytesIO(raw)  # not UTF-8, header's claim (cp1252) may be right
     # Other cases may be inserted here as happens
-    if b"CHARSET:1252" in raw:
-        raw = raw.replace(b"ENCODING:USASCII", b"ENCODING:UNICODE", 1)
-        raw = raw.replace(b"CHARSET:1252", b"CHARSET:NONE", 1)
+    header, separator, body = raw.partition(b"<")
+    if b"CHARSET:1252" in header:
+        header = header.replace(b"ENCODING:USASCII", b"ENCODING:UNICODE", 1)
+        header = header.replace(b"CHARSET:1252", b"CHARSET:NONE", 1)
+    raw = header + separator + body
     return BytesIO(raw)
 
 def to_csv(arglist: ArgList):
