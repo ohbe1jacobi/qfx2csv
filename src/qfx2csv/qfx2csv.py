@@ -3,6 +3,7 @@
 # Standard library imports
 import csv
 import argparse
+from io import BytesIO
 from csv import Dialect
 from datetime import datetime
 from argparse import ArgumentParser
@@ -67,6 +68,23 @@ def cli_arg_constructor() -> ArgumentParser:
             )
     return cmdparser
 
+def fix_encoding_header(fileobj) -> BytesIO:
+    """
+    Some banks (Notably Itaú Emps) set charset inside file wrongly to specific 
+    charset but exports the file in UTF-8, driving nuts to OFXTool Parse object
+    """
+    raw = fileobj.read()
+    try:
+        raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return BytesIO(raw)  # not UTF-8, header's claim (cp1252) may be right
+    # Other cases may be inserted here as happens
+    header, separator, body = raw.partition(b"<")
+    if b"CHARSET:1252" in header:
+        header = header.replace(b"ENCODING:USASCII", b"ENCODING:UNICODE", 1)
+        header = header.replace(b"CHARSET:1252", b"CHARSET:NONE", 1)
+    raw = header + separator + body
+    return BytesIO(raw)
 
 def to_csv(arglist: ArgList):
     """
@@ -85,7 +103,7 @@ def to_csv(arglist: ArgList):
 
     parser = OFXTree()
     with open(arglist.source_file, "rb") as fileobj:
-        parser.parse(fileobj)
+        parser.parse(fix_encoding_header(fileobj))
         ofx = parser.convert()
 
         statements = ofx.statements
